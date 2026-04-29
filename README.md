@@ -1,17 +1,22 @@
-# 📺 YouTube Channel Transcript Archiver
+# 📺 YouTube & Patreon Channel Transcript Archiver
 
-A robust, generalized tool designed to archive metadata, descriptions, and intelligently cleaned transcripts from any YouTube channel. This project automates the pipeline from discovery to high-quality text extraction.  This downloads already made subtitles, it does not use TTS models to generate transcripts.
+A robust, generalized tool designed to archive metadata, descriptions, and intelligently cleaned transcripts from any YouTube channel or Patreon creator. This project automates the pipeline from discovery to high-quality text extraction.
+
+> [!NOTE]
+> This tool downloads existing subtitles and metadata; it does **not** use AI/TTS models to generate transcripts from audio.
 
 ---
 
 ## ✨ Features
 
-- **🚀 Incremental Sync**: Efficiently tracks previously downloaded videos using `archive.txt` to only fetch new content.
-- **🧹 Smart Cleaning**: Converts messy SRT subtitles into readable text documents with pause detection (>3s).
-- **🗣️ Speaker Identification**: Uses configurable state-machine heuristics (relying on `>>` markers) to identify speakers.
-- **🗜️ Metadata Pruning**: Automatically strips large binary fields and PII from `.info.json` files to save space and ensure privacy.
+- **🚀 Universal Sync**: Archive full YouTube channels or Patreon creator posts with a single command.
+- **🧹 Smart Cleaning**: Converts messy SRT subtitles into readable text documents with intelligent pause detection.
+- **🗣️ Speaker Heuristics**: Customizable speaker-tagging heuristics for two-person conversations.
+- **🛡️ Secure Cookies**: Opt-in browser cookie extraction (Chrome, Brave, Firefox, etc.) for age-restricted content.
+- **📂 Unique Naming**: Automatically handles folder name collisions by tagging the source (e.g., `Creator (youtube)` vs `Creator (patreon)`).
+- **🗜️ Metadata Pruning**: Automatically strips large binary fields and PII from JSON metadata to save space.
 - **📚 Auto-Indexing**: Generates chronological `TRANSCRIPTS.md` and `PLAYLISTS.md` indices for easy navigation.
-- **🔄 Local Re-processing**: Ability to re-clean and re-index existing data without re-downloading from YouTube.
+- **🔄 Local Re-processing**: Re-clean and re-index existing data without re-downloading.
 
 ---
 
@@ -19,21 +24,19 @@ A robust, generalized tool designed to archive metadata, descriptions, and intel
 
 ### Prerequisites
 
-Ensure you have the following installed:
 - **Python 3.10+**
 - **[uv](https://github.com/astral-sh/uv)** (High-performance Python package manager)
 - **[yt-dlp](https://github.com/yt-dlp/yt-dlp)**
-- **Bash**
 
 ### Setup
 
 1. Clone the repository:
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/warkingtime/channel-transcript-archiver
    cd channel-transcript-archiver
    ```
 
-2. Install dependencies and setup environment:
+2. Install dependencies:
    ```bash
    uv sync
    ```
@@ -43,59 +46,82 @@ Ensure you have the following installed:
 ## 🚀 Usage
 
 ### Unified CLI
-The easiest way to use the archiver is through the `./channel-archiver` wrapper (which automatically uses `uv`):
+The easiest way to use the archiver is through the `./channel-archiver` wrapper:
 
 ```bash
 ./channel-archiver <command> [args]
 ```
 
-**Commands:**
-- `sync`: Archive and sync a channel.
-- `reclean`: Local re-cleanup of a channel.
-- `cookies`: Extract cookies from your browser.
-- `compress`: Archive a channel directory into a compressed file.
+**Available Commands:**
+- `sync`: Archive and sync a channel or Patreon creator.
+- `download`: Download and clean a single video transcript.
+- `reclean`: Local re-cleanup and re-indexing of an existing channel.
+- `list-browsers`: List available browsers and profiles for cookie extraction.
+- `cookies`: Extract fresh cookies from a browser to a static file.
+- `compress`: Archive a channel directory into a compressed file (`.zip`, `.tar.xz`).
+
+---
 
 ### Archive or Update a Channel
 To start archiving a new channel or update an existing one:
 
 ```bash
 # New channel (requires URL)
-./channel-archiver sync <CHANNEL_URL> [FOLDER_NAME] [--use-cookies] [--force]
+./channel-archiver sync <URL> [FOLDER_NAME] [--use-cookies]
 
-# Existing channel (can use folder name)
-./channel-archiver sync <FOLDER_NAME> [--use-cookies] [--force]
+# Update existing channel (uses folder name)
+./channel-archiver sync <FOLDER_NAME> [--use-cookies]
 ```
 
-**Example:**
+**Examples:**
 ```bash
-./channel-archiver sync https://www.youtube.com/@ExampleChannel ExampleChannel --use-cookies
-# Later, to update:
-./channel-archiver sync ExampleChannel
+./channel-archiver sync https://www.youtube.com/@ExampleChannel ExampleChannel
+./channel-archiver sync https://www.patreon.com/creatorslug CreatorName
 ```
+
+---
+
+### Download a Single Video
+If you don't want to archive a whole channel, you can download a single transcript:
+
+```bash
+./channel-archiver download <VIDEO_URL> [FOLDER_NAME]
+```
+
+---
 
 ### Age-Restricted Content & Cookies
-Some videos may be age-restricted and require authentication to download transcripts.
+Some content requires authentication. The archiver supports on-the-fly cookie extraction from your browser.
 
-**Recommended: Save your browser preference** (reads fresh cookies each sync):
+1. **Find your browser ID/Profile**:
+   ```bash
+   ./channel-archiver list-browsers
+   ```
+2. **Set your preference**:
+   ```bash
+   echo 'brave:Profile 1' > .browser  # Reads fresh cookies each sync
+   ```
+3. **Opt-in during sync**:
+   ```bash
+   ./channel-archiver sync ExampleChannel --use-cookies
+   ```
+
+---
+
+### Dry Run / Command Preview
+To see exactly what `yt-dlp` commands will be executed without actually performing any downloads:
+
 ```bash
-echo 'firefox:alt' > .browser      # Or: chrome, safari, firefox:profile_name
+./channel-archiver sync <URL> --print-command
 ```
 
-**Opt-in to cookie usage**:
-To prevent accidental data leakage or browser database locking, the archiver only reads from `.browser` or `cookies.txt` if you explicitly pass the `--use-cookies` flag:
-```bash
-./channel-archiver sync <URL> --use-cookies
-```
-
-**Alternative: Export cookies to a file** (may go stale quickly):
-```bash
-./channel-archiver cookies firefox:alt    # Or: chrome, safari, etc.
-```
+---
 
 ### Configuration & Speaker ID
-When you first sync a channel, a default `config.toml` is created in the channel folder. You can edit this to enable the **Dual Speaker Heuristic**:
+Each channel folder contains a `config.toml`. You can configure the **Dual Speaker Heuristic** for podcasts:
 
 ```toml
+url = "https://www.youtube.com/@Example"
 uses_dual_speaker_heuristic = true
 speaker_a = "ALICE"
 speaker_a_strings = ["hello bob", "hi bob"]
@@ -103,65 +129,36 @@ speaker_b = "BOB"
 speaker_b_strings = ["hello alice", "hi alice"]
 ```
 
-> [!IMPORTANT]
-> **How it works**: This is a text-based state machine. It identifies the "Initial Speaker" by finding the first occurrence of one of your configured strings. From then on, it **toggles** between the two speakers every time it encounters a `>>` marker in the subtitles.  Thus this heuristic only really works well with two speaker podcast type videos.
->
-> **Compatibility**: This heuristic *only* works on transcripts that include `>>` speaker change indicators. YouTube only started adding these to auto-captions relatively recently; older videos will likely lack these markers and thus will not support automated speaker switching.
-
-### Local Re-cleanup
-If you've updated your `config.toml` or the cleaning logic, you can re-process existing data without re-downloading:
-
-```bash
-./channel-archiver reclean <FOLDER_NAME>
-```
-
-### Channel Compression
-To archive a channel directory into a single compressed file:
-
-```bash
-./channel-archiver compress <FOLDER_NAME> [--format zip|tar.gz|tar.xz] [--level 1-9] [--bgzip]
-```
-
-**Options:**
-- `--format`: `zip` (default), `tar.gz`, or `tar.xz`.
-- `--level`: Compression level from `1` (fastest) to `9` (smallest). Default is `6`.
-- `--bgzip`: Uses `bgzip` (Blocked GNU Zip) to create a `.tar.gz` archive that supports random access and parallel decompression. (Requires `bgzip` to be installed).
-
-**Example:**
-```bash
-./channel-archiver compress ExampleChannel --format tar.xz --level 9
-```
+> [!TIP]
+> **How it works**: The heuristic identifies the "Initial Speaker" by finding a greeting string, then toggles speakers every time it sees a `>>` marker in the subtitles.
 
 ---
 
 ## 📂 Project Structure
 
-All archived data is stored in the `channels/` directory (ignored by Git):
+Archived data is stored in the `channels/` directory:
 
 ```text
 channels/
-└── <channel-handle>/
-    ├── data/               # Subdirectories per video: YYYYMMDD - Title/
-    │   ├── video.info.json # Pruned metadata
-    │   ├── video.description.txt
-    │   ├── video.en.srt    # Original subtitles
-    │   └── video.en.txt    # Cleaned, speaker-tagged transcript
-    ├── playlists/          # Metadata for all channel playlists
-    ├── archive.txt         # yt-dlp download history
-    ├── config.toml         # Channel-specific speaker heuristics
-    ├── PLAYLISTS.md        # Generated index of all playlists
-    └── TRANSCRIPTS.md      # Generated chronological list of videos
+└── <folder_name>/
+    ├── data/               # Video folders: YYYYMMDD - Title/
+    │   ├── info.json       # Pruned metadata
+    │   ├── description.txt
+    │   ├── en.srt          # Original subtitles
+    │   └── en.txt          # Cleaned transcript
+    ├── playlists/          # Playlist metadata (YouTube only)
+    ├── archive.txt         # Download history
+    ├── config.toml         # URL and speaker heuristics
+    ├── PLAYLISTS.md        # Playlist index
+    └── TRANSCRIPTS.md      # Chronological video index
 ```
 
 ---
 
 ## ⚖️ License
 
-- **Code**: This tool is released under the [Unlicense](LICENSE).
-- **Data**: All transcripts, metadata, and descriptions archived in the `channels/` directory remain the intellectual property and copyright of their respective YouTube channels.
+- **Code**: Released under the [Unlicense](LICENSE).
+- **Data**: Transcripts and metadata remain the intellectual property of their respective creators.
 
 ---
-
-> [!NOTE]
-> This project is designed for researchers and archivists. Please respect YouTube's Terms of Service and the creators' content.
-
+Generated by [warkingtime/channel-transcript-archiver](https://github.com/warkingtime/channel-transcript-archiver).
