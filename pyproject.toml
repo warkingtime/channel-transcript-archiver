@@ -1,0 +1,50 @@
+[project]
+name = "channel-transcript-archiver"
+version = "0.1.0"
+description = "YouTube Metadata and Transcript Extractor"
+authors = [
+    { name = "Channel Archive Team" }
+]
+license = { text = "Unlicense" }
+dependencies = [
+    "yt-dlp",
+    "tqdm",
+    "tomli; python_version < '3.11'",
+]
+requires-python = ">=3.10"
+
+[project.scripts]
+channel-archiver = "src.cli:main"
+channel-extract = "src.extract:main"
+channel-reclean = "src.reclean:main"
+channel-cookies = "src.extract_cookies:main"
+
+[project.optional-dependencies]
+dev = [
+    "ruff",
+    "mypy",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B"]
+ignore = []
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+ignore_missing_imports = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.setuptools.package-dir]
+"src" = "src"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
