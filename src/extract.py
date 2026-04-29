@@ -35,30 +35,10 @@ def rename_descriptions(channel_dir: Path) -> None:
             f.rename(f.with_suffix(".description.txt"))
 
 
-def sync_channel(
-    channel_url: str,
-    folder_name: str | None = None,
-    force: bool = False,
-    cookies_file: str | None = None,
-    cookies_browser: str | None = None,
-) -> None:
-    if not folder_name:
-        # Try to extract it from the URL
-        if "@" in channel_url:
-            folder_name = channel_url.split("@")[-1].split("/")[0]
-        elif "/channel/" in channel_url:
-            folder_name = channel_url.split("/channel/")[-1].split("/")[0]
-        elif "/c/" in channel_url:
-            folder_name = channel_url.split("/c/")[-1].split("/")[0]
-        else:
-            folder_name = "channel"
-
-    folder_name = sanitize_folder_name(folder_name)
-    channel_dir = Path("channels") / folder_name
+def setup_channel_directory(channel_dir: Path, channel_url: str) -> None:
+    """Sets up the channel directory with README.md and config.toml if they don't exist."""
     data_dir = channel_dir / "data"
     playlists_dir = channel_dir / "playlists"
-
-    log.info(f"Syncing channel: {channel_url} into {channel_dir} (Force: {'on' if force else 'off'})")
     data_dir.mkdir(parents=True, exist_ok=True)
     playlists_dir.mkdir(parents=True, exist_ok=True)
 
@@ -66,25 +46,27 @@ def sync_channel(
     readme_path = channel_dir / "README.md"
     if not readme_path.exists():
         log.info(f"Creating README.md in {channel_dir}...")
-        readme_content = f"""# 📺 YouTube Channel Archive: {folder_name}
+        source_type = "Patreon" if "patreon.com" in channel_url else "YouTube"
+        folder_name = channel_dir.name
+        readme_content = f"""# 📺 {source_type} Archive: {folder_name}
 
 This directory contains an automated archive of metadata, descriptions, and
-transcripts for the YouTube channel: {channel_url}
+transcripts for: {channel_url}
 
 ## 📂 Contents
-- **data/**: Chronological folders for each video containing:
-    - `.info.json`: Pruned video metadata.
-    - `.description.txt`: Original video description.
+- **data/**: Chronological folders for each post containing:
+    - `.info.json`: Pruned metadata.
+    - `.description.txt`: Original description.
     - `.en.srt`: Original subtitles.
     - `.en.txt`: Cleaned, speaker-tagged transcript.
-- **playlists/**: Metadata for all channel playlists.
-- **archive.txt**: A record of all synced videos to ensure incremental updates.
+- **playlists/**: Metadata for all playlists (if applicable).
+- **archive.txt**: A record of all synced items to ensure incremental updates.
 - **config.toml**: Heuristics used for speaker identification.
-- **PLAYLISTS.md**: An index of all videos organized by playlist.
+- **PLAYLISTS.md**: An index organized by playlist.
 - **TRANSCRIPTS.md**: A chronological index of all available transcripts.
 
 ## 🔄 How to Update
-To sync new videos or re-process existing ones, use the [YouTube Channel Transcript Archiver](https://github.com/warkingtime/channel-transcript-archiver):
+To sync new content or re-process existing ones, use the [Channel Transcript Archiver](https://github.com/warkingtime/channel-transcript-archiver):
 
 1. Install the tool.
 2. Run the sync command from the project root:
@@ -118,56 +100,11 @@ speaker_b_strings = ["hello speaker 1", "hi speaker 1"]
 """
         config_path.write_text(config_content)
 
-    # Update archive.txt from existing files
-    log.info("Updating archive.txt from local files...")
-    populate_archive(str(channel_dir))
 
-    cookie_args = get_cookie_args(cookies_file=cookies_file, cookies_from_browser=cookies_browser)
-
-    # yt-dlp video sync
-    log.info("Starting yt-dlp video sync...")
-    yt_dlp_cmd = [
-        "yt-dlp",
-        "--skip-download",
-        "--write-description",
-        "--write-info-json",
-        "--write-subs",
-        "--write-auto-subs",
-        "--sub-langs",
-        "en.*",
-        "--convert-subs",
-        "srt",
-        "--ignore-errors",
-        "--download-archive",
-        str(channel_dir / "archive.txt"),
-        "--output",
-        f"{channel_dir}/data/%(upload_date)s - %(title)s/%(title)s.%(ext)s",
-        "--sleep-requests",
-        "1",
-        "--sleep-interval",
-        "1",
-    ]
-    yt_dlp_cmd.extend(cookie_args)
-    yt_dlp_cmd.append(channel_url)
-
-    subprocess.run(yt_dlp_cmd)
-
+def finalize_channel_update(channel_dir: Path, force: bool = False) -> None:
+    """Performs post-download tasks: renaming, deduplication, cleaning, and reporting."""
     # Rename descriptions to .txt
     rename_descriptions(channel_dir)
-
-    # yt-dlp playlist metadata
-    log.info("Extracting playlist metadata...")
-    playlist_cmd = [
-        "yt-dlp",
-        "--write-info-json",
-        "--flat-playlist",
-        "--output",
-        f"{channel_dir}/playlists/%(title)s.%(ext)s",
-    ]
-    playlist_cmd.extend(cookie_args)
-    playlist_cmd.append(f"{channel_url}/playlists")
-
-    subprocess.run(playlist_cmd)
 
     # Deduplicate
     log.info("Deduplicating files...")
@@ -185,7 +122,149 @@ speaker_b_strings = ["hello speaker 1", "hi speaker 1"]
     summarize_playlists(v_map, str(channel_dir))
     generate_transcripts_list(v_map, str(channel_dir))
 
+
+def sync_channel(
+    channel_url: str,
+    folder_name: str | None = None,
+    force: bool = False,
+    cookies_file: str | None = None,
+    cookies_browser: str | None = None,
+) -> None:
+    if not folder_name:
+        # Try to extract it from the URL
+        if "@" in channel_url:
+            folder_name = channel_url.split("@")[-1].split("/")[0]
+        elif "/channel/" in channel_url:
+            folder_name = channel_url.split("/channel/")[-1].split("/")[0]
+        elif "/c/" in channel_url:
+            folder_name = channel_url.split("/c/")[-1].split("/")[0]
+        elif "patreon.com" in channel_url:
+            # Handle Patreon URL patterns: https://www.patreon.com/c/SimoneAndMalcolmCollins/
+            folder_name = channel_url.rstrip("/").split("/")[-1]
+        else:
+            folder_name = "channel"
+
+    folder_name = sanitize_folder_name(folder_name)
+    channel_dir = Path("channels") / folder_name
+
+    log.info(f"Syncing channel: {channel_url} into {channel_dir} (Force: {'on' if force else 'off'})")
+    setup_channel_directory(channel_dir, channel_url)
+
+    # Update archive.txt from existing files
+    log.info("Updating archive.txt from local files...")
+    populate_archive(str(channel_dir))
+
+    cookie_args = get_cookie_args(cookies_file=cookies_file, cookies_from_browser=cookies_browser)
+
+    # yt-dlp content sync
+    log.info(f"Starting yt-dlp sync for {channel_url}...")
+    yt_dlp_cmd = [
+        "yt-dlp",
+        "--skip-download",
+        "--write-description",
+        "--write-info-json",
+        "--write-subs",
+        "--write-auto-subs",
+        "--sub-langs",
+        "en.*",
+        "--convert-subs",
+        "srt",
+        "--ignore-errors",
+        "--download-archive",
+        str(channel_dir / "archive.txt"),
+        "--allow-unplayable-formats",
+        "--output",
+        f"{channel_dir}/data/%(upload_date)s - %(title)s/%(title)s.%(ext)s",
+        "--sleep-requests",
+        "1",
+        "--sleep-interval",
+        "1",
+    ]
+    yt_dlp_cmd.extend(cookie_args)
+    yt_dlp_cmd.append(channel_url)
+
+    subprocess.run(yt_dlp_cmd)
+
+    # yt-dlp playlist metadata (YouTube only for now)
+    if "youtube.com" in channel_url or "youtu.be" in channel_url:
+        log.info("Extracting playlist metadata...")
+        playlist_cmd = [
+            "yt-dlp",
+            "--write-info-json",
+            "--flat-playlist",
+            "--allow-unplayable-formats",
+            "--output",
+            f"{channel_dir}/playlists/%(title)s.%(ext)s",
+        ]
+        playlist_cmd.extend(cookie_args)
+        playlist_cmd.append(f"{channel_url}/playlists")
+
+        subprocess.run(playlist_cmd)
+    else:
+        log.info("Skipping playlist metadata extraction (non-YouTube URL).")
+
+    finalize_channel_update(channel_dir, force=force)
     log.info(f"Sync complete for {folder_name}!")
+
+
+def download_video(
+    video_url: str,
+    folder_name: str | None = None,
+    force: bool = False,
+    cookies_file: str | None = None,
+    cookies_browser: str | None = None,
+) -> None:
+    cookie_args = get_cookie_args(cookies_file=cookies_file, cookies_from_browser=cookies_browser)
+
+    if not folder_name:
+        log.info(f"Detecting uploader for {video_url}...")
+        try:
+            cmd = [
+                "yt-dlp",
+                "--print",
+                "uploader",
+                "--ignore-errors",
+                "--allow-unplayable-formats",
+                video_url,
+            ] + cookie_args
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            folder_name = result.stdout.strip()
+        except Exception as e:
+            log.warning(f"Could not detect uploader: {e}. Using 'downloads' folder.")
+            folder_name = "downloads"
+
+    folder_name = sanitize_folder_name(folder_name)
+    channel_dir = Path("channels") / folder_name
+
+    log.info(f"Downloading video: {video_url} into {channel_dir}")
+    setup_channel_directory(channel_dir, video_url)
+
+    # yt-dlp content download
+    log.info(f"Starting yt-dlp download for {video_url}...")
+    yt_dlp_cmd = [
+        "yt-dlp",
+        "--skip-download",
+        "--write-description",
+        "--write-info-json",
+        "--write-subs",
+        "--write-auto-subs",
+        "--sub-langs",
+        "en.*",
+        "--convert-subs",
+        "srt",
+        "--ignore-errors",
+        "--no-playlist",
+        "--allow-unplayable-formats",
+        "--output",
+        f"{channel_dir}/data/%(upload_date)s - %(title)s/%(title)s.%(ext)s",
+    ]
+    yt_dlp_cmd.extend(cookie_args)
+    yt_dlp_cmd.append(video_url)
+
+    subprocess.run(yt_dlp_cmd)
+
+    finalize_channel_update(channel_dir, force=force)
+    log.info(f"Download complete for {folder_name}!")
 
 
 def main() -> None:

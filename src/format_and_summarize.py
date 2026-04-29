@@ -65,7 +65,7 @@ def get_video_map(channel_dir: str) -> dict[str, dict[str, str]]:
                         "folder": os.path.dirname(ifile),
                         "upload_date": str(data.get("upload_date", "Unknown")),
                         "title": str(data.get("title", "Unknown")),
-                        "url": f"https://www.youtube.com/watch?v={v_id}",
+                        "url": str(data.get("webpage_url", f"https://www.youtube.com/watch?v={v_id}")),
                     }
         except Exception:
             pass
@@ -103,19 +103,17 @@ def summarize_playlists(video_map: dict[str, dict[str, str]], channel_dir: str) 
 
     output_path = os.path.join(channel_dir, "PLAYLISTS.md")
     with open(output_path, "w", encoding="utf-8") as f:
-        f.write(
-            "# YouTube Playlists Summary\n\n## Overview\n\n| Playlist Title | Videos | Link |\n| --- | --- | --- |\n"
-        )
+        f.write("# Playlists Summary\n\n## Overview\n\n| Playlist Title | Items | Link |\n| --- | --- | --- |\n")
         for p in playlists_data:
             title = escape_markdown_table_content(p.get("title", "Unknown"))
             anchor = re.sub(r"\s+", "-", re.sub(r"[^a-z0-9\s-]", "", title.lower())).strip("-")
             count = p.get("playlist_count") or len(p.get("entries", []))
             url = p.get("webpage_url", "")
-            f.write(f"| [{title}](#{anchor}) | {count} | [YouTube]({url}) |\n")
+            f.write(f"| [{title}](#{anchor}) | {count} | [Source]({url}) |\n")
 
         for p in playlists_data:
             title = p.get("title", "Unknown")
-            f.write(f"\n## {title}\n\n| Date | Video Title | Transcript |\n| --- | --- | --- |\n")
+            f.write(f"\n## {title}\n\n| Date | Title | Transcript |\n| --- | --- | --- |\n")
             for entry in p.get("entries", []):
                 if not entry:
                     continue
@@ -123,7 +121,7 @@ def summarize_playlists(video_map: dict[str, dict[str, str]], channel_dir: str) 
                 if not e_id:
                     continue
                 e_title = escape_markdown_table_content(entry.get("title", "Unknown"))
-                e_url = f"https://www.youtube.com/watch?v={e_id}"
+                e_url = entry.get("webpage_url", f"https://www.youtube.com/watch?v={e_id}")
                 date = format_date(video_map[e_id]["upload_date"]) if e_id in video_map else "Unknown"
                 t_link = get_transcript_link(e_id, video_map, channel_dir)
                 f.write(f"| {date} | [{e_title}]({e_url}) | {t_link} |\n")
@@ -137,7 +135,7 @@ def generate_transcripts_list(video_map: dict[str, dict[str, str]], channel_dir:
     )
     output_path = os.path.join(channel_dir, "TRANSCRIPTS.md")
     with open(output_path, "w", encoding="utf-8") as f:
-        f.write("# All Videos and Transcripts\n\n| Date | Video Title | Transcript |\n| --- | --- | --- |\n")
+        f.write("# All Content and Transcripts\n\n| Date | Title | Transcript |\n| --- | --- | --- |\n")
         for v_id in sorted_ids:
             info = video_map[v_id]
             date = format_date(info["upload_date"])

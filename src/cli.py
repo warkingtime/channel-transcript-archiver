@@ -2,7 +2,7 @@ import argparse
 import sys
 
 from .compress import compress_channel
-from .extract import sync_channel
+from .extract import download_video, sync_channel
 from .extract_cookies import extract_cookies
 from .reclean import reclean
 
@@ -21,15 +21,21 @@ Examples:
     )
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
+    # Download command (single video)
+    download_parser = subparsers.add_parser("download", help="Download and clean a single video transcript")
+    download_parser.add_argument("url", help="YouTube Video URL")
+    download_parser.add_argument("name", nargs="?", help="Optional folder name (uploader name used if omitted)")
+    download_parser.add_argument("--force", action="store_true", help="Force re-cleaning of transcript")
+    download_parser.add_argument("--cookies", help="Path to a cookies.txt file")
+    download_parser.add_argument("--cookies-from-browser", help="Browser to extract cookies from")
+
     # Sync command
-    sync_parser = subparsers.add_parser("sync", help="Archive and sync a YouTube channel")
-    sync_parser.add_argument("url", help="YouTube Channel URL")
+    sync_parser = subparsers.add_parser("sync", help="Archive and sync a YouTube channel or Patreon creator")
+    sync_parser.add_argument("url", help="Channel or Creator URL")
     sync_parser.add_argument("name", nargs="?", help="Optional folder name for the channel")
     sync_parser.add_argument("--force", action="store_true", help="Force re-cleaning of all transcripts")
     sync_parser.add_argument("--cookies", help="Path to a cookies.txt file")
-    sync_parser.add_argument("--cookies-from-browser", help="Browser to extract cookies from (e.g., chrome, firefox)")
-
-    # Reclean command
+    sync_parser.add_argument("--cookies-from-browser", help="Browser to extract cookies from")
     reclean_parser = subparsers.add_parser("reclean", help="Local re-cleanup and re-indexing of a channel")
     reclean_parser.add_argument("name", help="Folder name of the channel to re-clean")
 
@@ -70,6 +76,14 @@ Examples:
     try:
         if args.command == "sync":
             sync_channel(
+                args.url,
+                folder_name=args.name,
+                force=args.force,
+                cookies_file=args.cookies,
+                cookies_browser=args.cookies_from_browser,
+            )
+        elif args.command == "download":
+            download_video(
                 args.url,
                 folder_name=args.name,
                 force=args.force,
