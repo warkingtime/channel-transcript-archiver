@@ -1,10 +1,12 @@
 """Shared browser/cookie resolution utilities for yt-dlp."""
 
 import configparser
+import json
 import logging
 import os
 import platform
 from pathlib import Path
+from typing import Any
 
 log = logging.getLogger(__name__)
 
@@ -73,14 +75,16 @@ def get_cookie_args(
     *,
     cookies_file: str | None = None,
     cookies_from_browser: str | None = None,
+    use_cookies: bool = False,
 ) -> list[str]:
     """Build the yt-dlp cookie arguments list.
 
     Priority:
       1. Explicit --cookies or --cookies-from-browser args (from CLI)
-      2. .browser file (reads fresh cookies from browser at runtime — recommended)
-      3. cookies.txt file (static export — may go stale)
-      4. No cookies
+      2. If use_cookies is True:
+         a. .browser file (reads fresh cookies from browser at runtime)
+         b. cookies.txt file (static export)
+      3. No cookies
     """
     if cookies_file:
         log.info("Using cookie file: %s", cookies_file)
@@ -90,6 +94,9 @@ def get_cookie_args(
         resolved = resolve_browser(cookies_from_browser)
         log.info("Using cookies from browser: %s", resolved)
         return ["--cookies-from-browser", resolved]
+
+    if not use_cookies:
+        return []
 
     # Auto-detect from .browser file
     browser_file = Path(".browser")
@@ -102,7 +109,114 @@ def get_cookie_args(
 
     # Fall back to static cookies.txt
     if Path("cookies.txt").is_file():
-        log.warning("Using static cookies.txt (may be stale). Consider: echo 'firefox:alt' > .browser")
+        log.info("Using static cookies.txt.")
         return ["--cookies", "cookies.txt"]
 
     return []
+
+
+def _get_chromium_profiles(browser_dir: Path) -> list[dict[str, str]]:
+    """Extract profile information from a Chromium browser directory."""
+    local_state_path = browser_dir / "Local State"
+    if not local_state_path.exists():
+        # Fallback: check for Default/Profile folders manually if Local State is missing
+        profiles = []
+        if (browser_dir / "Default").exists():
+            profiles.append({"folder": "Default", "name": "Default"})
+        for p in browser_dir.glob("Profile *"):
+            if p.is_dir():
+                profiles.append({"folder": p.name, "name": p.name})
+        return profiles
+
+    try:
+        with open(local_state_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            info_cache = data.get("profile", {}).get("info_cache", {})
+            profiles = []
+            for folder, info in info_cache.items():
+                name = info.get("name")
+                profiles.append({"folder": folder, "name": name})
+            return sorted(profiles, key=lambda x: x["folder"])
+    except Exception:
+        return []
+
+
+def list_browsers() -> None:
+    """List available browsers and discovered profiles for cookie extraction."""
+    print("📺 Available Browser IDs for Cookie Extraction:")
+
+    # Define browser paths for the current platform
+    system = platform.system()
+    home = Path.home()
+    browser_configs: list[dict[str, Any]] = []
+
+    if system == "Darwin":
+        browser_configs = [
+            {"id": "chrome", "name": "Google Chrome", "path": home / "Library/Application Support/Google/Chrome"},
+            {
+                "id": "brave",
+                "name": "Brave",
+                "path": home / "Library/Application Support/BraveSoftware/Brave-Browser",
+            },
+            {"id": "edge", "name": "Microsoft Edge", "path": home / "Library/Application Support/Microsoft Edge"},
+            {"id": "opera", "name": "Opera", "path": home / "Library/Application Support/com.operasoftware.Opera"},
+            {"id": "safari", "name": "Safari", "path": None},  # Safari profiles are handled differently
+            {"id": "firefox", "name": "Firefox", "path": _firefox_profiles_ini_path()},
+        ]
+    elif system == "Linux":
+        # Simplified Linux paths
+        browser_configs = [
+            {"id": "chrome", "name": "Google Chrome", "path": home / ".config/google-chrome"},
+            {"id": "brave", "name": "Brave", "path": home / ".config/BraveSoftware/Brave-Browser"},
+            {"id": "firefox", "name": "Firefox", "path": _firefox_profiles_ini_path()},
+        ]
+
+    for config in browser_configs:
+        b_id: str = config["id"]
+        b_name: str = config["name"]
+        b_path: Path | None = config["path"]
+
+        if b_id == "firefox":
+            print(f"\n{b_name} (use 'firefox:PROFILE_NAME'):")
+            if b_path and b_path.is_file():
+                try:
+                    config_parser = configparser.ConfigParser()
+                    config_parser.read(str(b_path))
+                    ff_profiles = []
+                    for section in config_parser.sections():
+                        p_name = config_parser.get(section, "Name", fallback=None)
+                        if p_name:
+                            ff_profiles.append(p_name)
+                    if ff_profiles:
+                        for p in sorted(ff_profiles):
+                            print(f"  - {p} (use 'firefox:{p}')")
+                    else:
+                        print("  - (No named profiles found)")
+                except Exception:
+                    print("  - (Error reading profiles.ini)")
+            else:
+                print("  - (Not found or profiles.ini missing)")
+
+        elif b_id == "safari":
+            print(f"\n{b_name}:")
+            print("  - Default (use 'safari')")
+
+        else:
+            print(f"\n{b_name} (use '{b_id}:PROFILE_FOLDER'):")
+            if b_path and b_path.is_dir():
+                chrome_profiles = _get_chromium_profiles(b_path)
+                if chrome_profiles:
+                    for cp in chrome_profiles:
+                        display_name = f"{cp['folder']}"
+                        if cp["name"] and cp["name"] != cp["folder"]:
+                            display_name += f" ({cp['name']})"
+                        print(f"  - {display_name} (use '{b_id}:{cp['folder']}')")
+                else:
+                    print(f"  - Default (use '{b_id}')")
+            else:
+                print(f"  - (Not found at expected path: {b_path})")
+
+    print("\nExamples:")
+    print("  ./channel-archiver sync <URL> --cookies-from-browser brave:Default")
+    print('  ./channel-archiver sync <URL> --cookies-from-browser "chrome:Profile 1"')
+    print("  echo 'firefox:work' > .browser")

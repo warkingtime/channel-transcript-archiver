@@ -1,6 +1,7 @@
 import argparse
 import sys
 
+from .browser import list_browsers
 from .compress import compress_channel
 from .extract import download_video, sync_channel
 from .extract_cookies import extract_cookies
@@ -28,6 +29,16 @@ Examples:
     download_parser.add_argument("--force", action="store_true", help="Force re-cleaning of transcript")
     download_parser.add_argument("--cookies", help="Path to a cookies.txt file")
     download_parser.add_argument("--cookies-from-browser", help="Browser to extract cookies from")
+    download_parser.add_argument(
+        "--use-cookies",
+        action="store_true",
+        help="Enable cookie usage (required to use .browser or cookies.txt)",
+    )
+    download_parser.add_argument(
+        "--print-command",
+        action="store_true",
+        help="Print the yt-dlp command that would be executed instead of running it",
+    )
 
     # Sync command
     sync_parser = subparsers.add_parser("sync", help="Archive and sync a YouTube channel or Patreon creator")
@@ -36,8 +47,21 @@ Examples:
     sync_parser.add_argument("--force", action="store_true", help="Force re-cleaning of all transcripts")
     sync_parser.add_argument("--cookies", help="Path to a cookies.txt file")
     sync_parser.add_argument("--cookies-from-browser", help="Browser to extract cookies from")
+    sync_parser.add_argument(
+        "--use-cookies",
+        action="store_true",
+        help="Enable cookie usage (required to use .browser or cookies.txt)",
+    )
+    sync_parser.add_argument(
+        "--print-command",
+        action="store_true",
+        help="Print the yt-dlp command that would be executed instead of running it",
+    )
     reclean_parser = subparsers.add_parser("reclean", help="Local re-cleanup and re-indexing of a channel")
     reclean_parser.add_argument("name", help="Folder name of the channel to re-clean")
+
+    # List browsers command
+    subparsers.add_parser("list-browsers", help="List available browsers and Firefox profiles for cookies")
 
     # Cookies command
     cookies_parser = subparsers.add_parser("cookies", help="Extract fresh cookies from a browser to cookies.txt")
@@ -81,6 +105,8 @@ Examples:
                 force=args.force,
                 cookies_file=args.cookies,
                 cookies_browser=args.cookies_from_browser,
+                use_cookies=args.use_cookies,
+                print_command=args.print_command,
             )
         elif args.command == "download":
             download_video(
@@ -89,6 +115,8 @@ Examples:
                 force=args.force,
                 cookies_file=args.cookies,
                 cookies_browser=args.cookies_from_browser,
+                use_cookies=args.use_cookies,
+                print_command=args.print_command,
             )
         elif args.command == "reclean":
             reclean(args.name)
@@ -96,6 +124,8 @@ Examples:
             extract_cookies(args.browser)
         elif args.command == "compress":
             compress_channel(args.name, format=args.format, level=args.level, use_bgzip=args.bgzip)
+        elif args.command == "list-browsers":
+            list_browsers()
         else:
             parser.print_help()
     except KeyboardInterrupt:

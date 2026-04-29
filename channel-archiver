@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# 📺 YouTube Channel Transcript Archiver Wrapper
+# This script runs the channel-archiver CLI using 'uv' to ensure dependencies are managed.
+
+# Check if uv is installed
+if ! command -v uv &> /dev/null; then
+    echo "Error: 'uv' is not installed. Please install it from https://github.com/astral-sh/uv"
+    exit 1
+fi
+
+# Check if yt-dlp is installed (either in path or via uv)
+if ! command -v yt-dlp &> /dev/null && ! uv run which yt-dlp &> /dev/null; then
+    echo "Error: 'yt-dlp' is not installed. Please install it or add it to dependencies."
+    exit 1
+fi
+
+# Run the CLI
+uv run channel-archiver "$@"

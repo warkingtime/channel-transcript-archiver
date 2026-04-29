@@ -43,10 +43,10 @@ Ensure you have the following installed:
 ## 🚀 Usage
 
 ### Unified CLI
-The easiest way to use the archiver is through the unified CLI:
+The easiest way to use the archiver is through the `./channel-archiver` wrapper (which automatically uses `uv`):
 
 ```bash
-uv run channel-archiver <command> [args]
+./channel-archiver <command> [args]
 ```
 
 **Commands:**
@@ -55,16 +55,22 @@ uv run channel-archiver <command> [args]
 - `cookies`: Extract cookies from your browser.
 - `compress`: Archive a channel directory into a compressed file.
 
-### Archive a New Channel
-To start archiving a channel, run the `sync` command:
+### Archive or Update a Channel
+To start archiving a new channel or update an existing one:
 
 ```bash
-uv run channel-archiver sync <CHANNEL_URL> [FOLDER_NAME] [--force]
+# New channel (requires URL)
+./channel-archiver sync <CHANNEL_URL> [FOLDER_NAME] [--use-cookies] [--force]
+
+# Existing channel (can use folder name)
+./channel-archiver sync <FOLDER_NAME> [--use-cookies] [--force]
 ```
 
 **Example:**
 ```bash
-uv run channel-archiver sync https://www.youtube.com/@ExampleChannel ExampleChannel
+./channel-archiver sync https://www.youtube.com/@ExampleChannel ExampleChannel --use-cookies
+# Later, to update:
+./channel-archiver sync ExampleChannel
 ```
 
 ### Age-Restricted Content & Cookies
@@ -74,11 +80,16 @@ Some videos may be age-restricted and require authentication to download transcr
 ```bash
 echo 'firefox:alt' > .browser      # Or: chrome, safari, firefox:profile_name
 ```
-The archiver will automatically read cookies from your browser at runtime.
+
+**Opt-in to cookie usage**:
+To prevent accidental data leakage or browser database locking, the archiver only reads from `.browser` or `cookies.txt` if you explicitly pass the `--use-cookies` flag:
+```bash
+./channel-archiver sync <URL> --use-cookies
+```
 
 **Alternative: Export cookies to a file** (may go stale quickly):
 ```bash
-uv run channel-archiver cookies firefox:alt    # Or: chrome, safari, etc.
+./channel-archiver cookies firefox:alt    # Or: chrome, safari, etc.
 ```
 
 ### Configuration & Speaker ID
@@ -101,14 +112,14 @@ speaker_b_strings = ["hello alice", "hi alice"]
 If you've updated your `config.toml` or the cleaning logic, you can re-process existing data without re-downloading:
 
 ```bash
-uv run channel-archiver reclean <FOLDER_NAME>
+./channel-archiver reclean <FOLDER_NAME>
 ```
 
 ### Channel Compression
 To archive a channel directory into a single compressed file:
 
 ```bash
-uv run channel-archiver compress <FOLDER_NAME> [--format zip|tar.gz|tar.xz] [--level 1-9] [--bgzip]
+./channel-archiver compress <FOLDER_NAME> [--format zip|tar.gz|tar.xz] [--level 1-9] [--bgzip]
 ```
 
 **Options:**
@@ -118,7 +129,7 @@ uv run channel-archiver compress <FOLDER_NAME> [--format zip|tar.gz|tar.xz] [--l
 
 **Example:**
 ```bash
-uv run channel-archiver compress ExampleChannel --format tar.xz --level 9
+./channel-archiver compress ExampleChannel --format tar.xz --level 9
 ```
 
 ---

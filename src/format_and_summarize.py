@@ -102,6 +102,11 @@ def summarize_playlists(video_map: dict[str, dict[str, str]], channel_dir: str) 
     playlists_data.sort(key=lambda x: x.get("title", "").lower())
 
     output_path = os.path.join(channel_dir, "PLAYLISTS.md")
+    if not playlists_data:
+        if os.path.exists(output_path):
+            os.remove(output_path)
+        return
+
     with open(output_path, "w", encoding="utf-8") as f:
         f.write("# Playlists Summary\n\n## Overview\n\n| Playlist Title | Items | Link |\n| --- | --- | --- |\n")
         for p in playlists_data:
