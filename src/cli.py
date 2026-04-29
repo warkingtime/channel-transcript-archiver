@@ -39,6 +39,13 @@ Examples:
         action="store_true",
         help="Print the yt-dlp command that would be executed instead of running it",
     )
+    download_parser.add_argument(
+        "--include-comments",
+        type=int,
+        nargs="?",
+        const=10,
+        help="Include top N comments in metadata (default: 10 if flag present)",
+    )
 
     # Sync command
     sync_parser = subparsers.add_parser("sync", help="Archive and sync a YouTube channel or Patreon creator")
@@ -56,6 +63,13 @@ Examples:
         "--print-command",
         action="store_true",
         help="Print the yt-dlp command that would be executed instead of running it",
+    )
+    sync_parser.add_argument(
+        "--include-comments",
+        type=int,
+        nargs="?",
+        const=10,
+        help="Include top N comments in metadata (default: 10 if flag present)",
     )
     reclean_parser = subparsers.add_parser("reclean", help="Local re-cleanup and re-indexing of a channel")
     reclean_parser.add_argument("name", help="Folder name of the channel to re-clean")
@@ -107,6 +121,7 @@ Examples:
                 cookies_browser=args.cookies_from_browser,
                 use_cookies=args.use_cookies,
                 print_command=args.print_command,
+                include_comments=args.include_comments,
             )
         elif args.command == "download":
             download_video(
@@ -117,6 +132,7 @@ Examples:
                 cookies_browser=args.cookies_from_browser,
                 use_cookies=args.use_cookies,
                 print_command=args.print_command,
+                include_comments=args.include_comments,
             )
         elif args.command == "reclean":
             reclean(args.name)

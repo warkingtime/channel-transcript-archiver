@@ -196,6 +196,7 @@ def sync_channel(
     cookies_browser: str | None = None,
     use_cookies: bool = False,
     print_command: bool = False,
+    include_comments: int | None = None,
 ) -> None:
     # Check if channel_url is actually a folder name
     potential_dir = Path("channels") / channel_url
@@ -274,6 +275,9 @@ def sync_channel(
         "--sleep-interval",
         "1",
     ]
+
+    if include_comments:
+        yt_dlp_cmd.extend(["--write-comments", "--extractor-args", f"youtube:max-comments={include_comments}"])
     yt_dlp_cmd.extend(cookie_args)
     yt_dlp_cmd.append(channel_url)
 
@@ -335,6 +339,7 @@ def download_video(
     cookies_browser: str | None = None,
     use_cookies: bool = False,
     print_command: bool = False,
+    include_comments: int | None = None,
 ) -> None:
     cookie_args = get_cookie_args(
         cookies_file=cookies_file, cookies_from_browser=cookies_browser, use_cookies=use_cookies
@@ -386,6 +391,9 @@ def download_video(
         "--output",
         f"{channel_dir}/data/%(upload_date)s - %(title)s/%(title)s.%(ext)s",
     ]
+
+    if include_comments:
+        yt_dlp_cmd.extend(["--write-comments", "--extractor-args", f"youtube:max-comments={include_comments}"])
     yt_dlp_cmd.extend(cookie_args)
     yt_dlp_cmd.append(video_url)
 

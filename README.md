@@ -67,10 +67,10 @@ To start archiving a new channel or update an existing one:
 
 ```bash
 # New channel (requires URL)
-./channel-archiver sync <URL> [FOLDER_NAME] [--use-cookies]
+./channel-archiver sync <URL> [FOLDER_NAME] [--use-cookies] [--include-comments [N]]
 
 # Update existing channel (uses folder name)
-./channel-archiver sync <FOLDER_NAME> [--use-cookies]
+./channel-archiver sync <FOLDER_NAME> [--use-cookies] [--include-comments [N]]
 ```
 
 **Examples:**
@@ -85,7 +85,7 @@ To start archiving a new channel or update an existing one:
 If you don't want to archive a whole channel, you can download a single transcript:
 
 ```bash
-./channel-archiver download <VIDEO_URL> [FOLDER_NAME]
+./channel-archiver download <VIDEO_URL> [FOLDER_NAME] [--include-comments [N]]
 ```
 
 ---
