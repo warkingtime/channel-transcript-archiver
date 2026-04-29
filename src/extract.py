@@ -1,5 +1,6 @@
 import argparse
 import logging
+import os
 import re
 import subprocess
 import sys
@@ -101,6 +102,61 @@ def rename_descriptions(channel_dir: Path) -> None:
             f.rename(f.with_suffix(".description.txt"))
 
 
+def clean_title_whitespace(name: str) -> str:
+    """Replaces all whitespace types with standard space and strips edges and spaces before dots."""
+    # Replace all whitespace (including NBSP, tabs, etc.) with standard space
+    name = re.sub(r"\s+", " ", name)
+    # Remove spaces before dots
+    name = re.sub(r" \.", ".", name)
+    return name.strip()
+
+
+def cleanup_trailing_whitespace(channel_dir: Path) -> None:
+    """Trims trailing whitespace from all files and directories in the channel directory."""
+    log.info(f"Trimming trailing whitespace in {channel_dir}...")
+    # Use topdown=False to ensure we rename children before parents
+    for root, dirs, files in os.walk(channel_dir, topdown=False):
+        # Rename files
+        for name in files:
+            p = Path(root) / name
+            new_name = name
+
+            # Handle our specific multi-part extensions
+            found_ext = False
+            for ext in [".info.json", ".en.srt", ".en.txt", ".description.txt", ".description"]:
+                if name.endswith(ext):
+                    base = name[: -len(ext)]
+                    new_name = clean_title_whitespace(base) + ext
+                    found_ext = True
+                    break
+
+            if not found_ext:
+                # Fallback for single extensions or no extension
+                stem = clean_title_whitespace(p.stem)
+                suffix = p.suffix
+                new_name = stem + suffix
+
+            if new_name != name:
+                new_p = Path(root) / new_name
+                if not new_p.exists():
+                    log.info(f"Renaming file: '{name}' -> '{new_name}'")
+                    p.rename(new_p)
+                else:
+                    log.warning(f"Could not rename '{name}' to '{new_name}': target exists")
+
+        # Rename directories
+        for name in dirs:
+            p = Path(root) / name
+            new_name = clean_title_whitespace(name)
+            if new_name != name:
+                new_p = Path(root) / new_name
+                if not new_p.exists():
+                    log.info(f"Renaming directory: '{name}' -> '{new_name}'")
+                    p.rename(new_p)
+                else:
+                    log.warning(f"Could not rename directory '{name}' to '{new_name}': target exists")
+
+
 def setup_channel_directory(channel_dir: Path, channel_url: str) -> None:
     """Sets up the channel directory with README.md and config.toml if they don't exist."""
     data_dir = channel_dir / "data"
@@ -170,6 +226,9 @@ def finalize_channel_update(channel_dir: Path, force: bool = False) -> None:
     """Performs post-download tasks: renaming, deduplication, cleaning, and reporting."""
     # Rename descriptions to .txt
     rename_descriptions(channel_dir)
+
+    # Trim trailing whitespace from filenames and directories
+    cleanup_trailing_whitespace(channel_dir)
 
     # Deduplicate
     log.info("Deduplicating files...")

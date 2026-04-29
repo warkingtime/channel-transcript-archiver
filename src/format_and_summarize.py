@@ -7,9 +7,20 @@ import urllib.parse
 from typing import Any
 
 
+def clean_title(text: str) -> str:
+    if not text:
+        return ""
+    # Replace all whitespace (NBSP, etc.) with standard space
+    text = re.sub(r"\s+", " ", text)
+    # Remove spaces before dots (common in Patreon/yt-dlp titles)
+    text = re.sub(r" \.", ".", text)
+    return text.strip()
+
+
 def escape_markdown_table_content(text: str) -> str:
     if not text:
         return ""
+    text = clean_title(text)
     return text.replace("|", "\\|")
 
 
@@ -45,6 +56,10 @@ def format_json_files(channel_dir: str) -> None:
                         for k in keys_to_remove:
                             if k in entry:
                                 del entry[k]
+                        if "title" in entry and isinstance(entry["title"], str):
+                            entry["title"] = clean_title(entry["title"])
+            if "title" in data and isinstance(data["title"], str):
+                data["title"] = clean_title(data["title"])
             with open(json_file, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=4, ensure_ascii=False)
         except Exception as e:
@@ -64,7 +79,7 @@ def get_video_map(channel_dir: str) -> dict[str, dict[str, str]]:
                     video_map[v_id] = {
                         "folder": os.path.dirname(ifile),
                         "upload_date": str(data.get("upload_date", "Unknown")),
-                        "title": str(data.get("title", "Unknown")),
+                        "title": clean_title(str(data.get("title", "Unknown"))),
                         "url": str(data.get("webpage_url", f"https://www.youtube.com/watch?v={v_id}")),
                     }
         except Exception:
@@ -117,7 +132,7 @@ def summarize_playlists(video_map: dict[str, dict[str, str]], channel_dir: str) 
             f.write(f"| [{title}](#{anchor}) | {count} | [Source]({url}) |\n")
 
         for p in playlists_data:
-            title = p.get("title", "Unknown")
+            title = clean_title(str(p.get("title", "Unknown")))
             f.write(f"\n## {title}\n\n| Date | Title | Transcript |\n| --- | --- | --- |\n")
             for entry in p.get("entries", []):
                 if not entry:

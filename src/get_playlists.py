@@ -36,7 +36,7 @@ def get_playlist_data(channel_url: str = CHANNEL_URL, output_dir: str = OUTPUT_D
         if result_meta.returncode == 0:
             try:
                 data: dict[str, Any] = json.loads(result_meta.stdout)
-                title = str(data.get("title", p_id))
+                title = str(data.get("title", p_id)).strip()
                 safe_title = "".join(c for c in title if c.isalnum() or c in (" ", ".", "_")).strip()
                 output_path = os.path.join(output_dir, f"{safe_title}.info.json")
                 with open(output_path, "w", encoding="utf-8") as f:
