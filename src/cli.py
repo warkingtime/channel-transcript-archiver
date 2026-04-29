@@ -5,6 +5,7 @@ from .browser import list_browsers
 from .compress import compress_channel
 from .extract import download_video, sync_channel
 from .extract_cookies import extract_cookies
+from .list_channels import list_channels
 from .reclean import reclean
 
 
@@ -74,6 +75,9 @@ Examples:
     reclean_parser = subparsers.add_parser("reclean", help="Local re-cleanup and re-indexing of a channel")
     reclean_parser.add_argument("name", help="Folder name of the channel to re-clean")
 
+    # List channels command
+    subparsers.add_parser("list-channels", help="List currently synced channels and their metadata")
+
     # List browsers command
     subparsers.add_parser("list-browsers", help="List available browsers and Firefox profiles for cookies")
 
@@ -140,6 +144,8 @@ Examples:
             extract_cookies(args.browser)
         elif args.command == "compress":
             compress_channel(args.name, format=args.format, level=args.level, use_bgzip=args.bgzip)
+        elif args.command == "list-channels":
+            list_channels()
         elif args.command == "list-browsers":
             list_browsers()
         else:
