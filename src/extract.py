@@ -265,8 +265,7 @@ def sync_channel(
         "--convert-subs",
         "srt",
         "--ignore-errors",
-        "--download-archive",
-        str(channel_dir / "archive.txt"),
+        "--ignore-no-formats-error",
         "--allow-unplayable-formats",
         "--output",
         f"{channel_dir}/data/%(upload_date)s - %(title)s/%(title)s.%(ext)s",
@@ -275,6 +274,9 @@ def sync_channel(
         "--sleep-interval",
         "1",
     ]
+
+    if not force:
+        yt_dlp_cmd.extend(["--download-archive", str(channel_dir / "archive.txt")])
 
     if include_comments:
         yt_dlp_cmd.extend(["--write-comments", "--extractor-args", f"youtube:max-comments={include_comments}"])
@@ -386,6 +388,7 @@ def download_video(
         "--convert-subs",
         "srt",
         "--ignore-errors",
+        "--ignore-no-formats-error",
         "--no-playlist",
         "--allow-unplayable-formats",
         "--output",
