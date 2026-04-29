@@ -12,8 +12,9 @@ def populate_archive(channel_dir: str) -> None:
     if os.path.exists(archive_file):
         with open(archive_file) as f:
             for line in f:
-                if line.startswith("youtube "):
-                    existing_ids.add(line.split(" ")[1].strip())
+                parts = line.strip().split(" ")
+                if len(parts) == 2:
+                    existing_ids.add(parts[1])
 
     print(f"Scanning {data_dir} for existing video IDs...")
     info_files = glob.glob(os.path.join(data_dir, "**", "*.info.json"), recursive=True)
@@ -25,8 +26,9 @@ def populate_archive(channel_dir: str) -> None:
                 with open(info_file) as jf:
                     data = json.load(jf)
                     v_id = data.get("id")
+                    extractor = data.get("extractor", "youtube").lower()
                     if v_id and v_id not in existing_ids:
-                        f.write(f"youtube {v_id}\n")
+                        f.write(f"{extractor} {v_id}\n")
                         existing_ids.add(v_id)
                         new_ids += 1
             except Exception:
