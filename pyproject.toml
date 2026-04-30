@@ -9,6 +9,7 @@ license = { text = "Unlicense" }
 dependencies = [
     "yt-dlp",
     "tqdm",
+    "requests",
     "tomli; python_version < '3.11'",
 ]
 requires-python = ">=3.10"

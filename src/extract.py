@@ -22,6 +22,7 @@ from .format_and_summarize import (
     get_video_map,
     summarize_playlists,
 )
+from .get_patreon_collections import download_patreon_collections
 from .populate_archive import populate_archive
 from .remove_duplicates import (
     find_cross_folder_duplicates,
@@ -384,8 +385,23 @@ def sync_channel(
         playlist_cmd.extend(cookie_args)
         playlist_cmd.append(f"{channel_url}/playlists")
         print(f"[DRY RUN] Would execute: {shlex.join(playlist_cmd)}")
+    elif "patreon.com" in channel_url and not print_command:
+        log.info("Extracting Patreon collections metadata...")
+        cookies_path = cookies_file or "cookies.txt"
+        # If cookies_browser is provided, we might want to extract them first,
+        # but for now we assume they are in cookies.txt or .browser handled by get_cookie_args
+        # Actually, get_cookie_args returns yt-dlp arguments.
+        # We need a path for the requests session.
+        if cookies_file:
+            path = cookies_file
+        elif Path("cookies.txt").exists():
+            path = "cookies.txt"
+        else:
+            path = "cookies.txt"  # Fallback
+        
+        download_patreon_collections(channel_url, channel_dir, cookies_path=path)
     else:
-        log.info("Skipping playlist metadata extraction (non-YouTube URL).")
+        log.info("Skipping playlist metadata extraction (non-YouTube/Patreon URL).")
 
     if not print_command:
         finalize_channel_update(channel_dir, force=force)
