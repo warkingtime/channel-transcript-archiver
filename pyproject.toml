@@ -8,6 +8,11 @@ authors = [
 license = { text = "Unlicense" }
 dependencies = [
     "yt-dlp",
+    "curl-cffi==0.5.10",
+    "brotli",
+    "pycryptodomex",
+    "websockets",
+    "mutagen",
     "tqdm",
     "requests",
     "tomli; python_version < '3.11'",

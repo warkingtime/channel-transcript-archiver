@@ -313,6 +313,7 @@ def sync_channel(
     # yt-dlp content sync
     if not print_command:
         log.info(f"Starting yt-dlp sync for {channel_url}...")
+    
     yt_dlp_cmd = [
         "yt-dlp",
         "--skip-download",
@@ -327,6 +328,8 @@ def sync_channel(
         "--ignore-errors",
         "--ignore-no-formats-error",
         "--allow-unplayable-formats",
+        "--remote-components",
+        "ejs:github",
         "--output",
         f"{channel_dir}/data/%(upload_date)s - %(title)s/%(title)s.%(ext)s",
         "--sleep-requests",
@@ -334,6 +337,12 @@ def sync_channel(
         "--sleep-interval",
         "1",
     ]
+
+    import shutil
+    if shutil.which("deno"):
+        yt_dlp_cmd.extend(["--js-runtime", "deno"])
+    elif shutil.which("node"):
+        yt_dlp_cmd.extend(["--js-runtime", "node"])
 
     if not force:
         yt_dlp_cmd.extend(["--download-archive", str(channel_dir / "archive.txt")])
@@ -466,9 +475,17 @@ def download_video(
         "--ignore-no-formats-error",
         "--no-playlist",
         "--allow-unplayable-formats",
+        "--remote-components",
+        "ejs:github",
         "--output",
         f"{channel_dir}/data/%(upload_date)s - %(title)s/%(title)s.%(ext)s",
     ]
+
+    import shutil
+    if shutil.which("deno"):
+        yt_dlp_cmd.extend(["--js-runtime", "deno"])
+    elif shutil.which("node"):
+        yt_dlp_cmd.extend(["--js-runtime", "node"])
 
     if include_comments:
         yt_dlp_cmd.extend(["--write-comments", "--extractor-args", f"youtube:max-comments={include_comments}"])
